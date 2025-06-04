@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stock Trend Predictor</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      padding: 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+      margin-bottom: 20px;
+    }
+
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+    }
+
+    button {
+      background-color: #007bff;
+      color: #fff;
+      padding: 12px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 17px;
+      width: 100%;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #loadingIndicator {
+      display: none;
+      text-align: center;
+      margin-top: 15px;
+      font-size: 1.1em;
+    }
+
+    #predictionResult {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #eaf6ff;
+      border-radius: 6px;
+      border: 1px solid #cce5ff;
+    }
+
+    .trend-up {
+      color: green;
+      font-weight: bold;
+    }
+
+    .trend-down {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Stock Trend Predictor</h1>
+
+    <label for="newsInput">News Text:</label>
+    <textarea id="newsInput" placeholder="Enter news headline or article..."></textarea>
+
+    <h3>Enter Stock Data Manually</h3>
+
+    <label for="Close">Close_^GSPC</label>
+    <input type="number" id="Close" step="any"/>
+
+    <label for="High">High_^GSPC</label>
+    <input type="number" id="High" step="any"/>
+
+    <label for="Low">Low_^GSPC</label>
+    <input type="number" id="Low" step="any"/>
+
+    <label for="Open">Open_^GSPC</label>
+    <input type="number" id="Open" step="any"/>
+
+    <label for="Volume">Volume_^GSPC</label>
+    <input type="number" id="Volume" step="any"/>
+
+    <label for="daily_return">Daily Return</label>
+    <input type="number" id="daily_return" step="any"/>
+
+    <label for="Close_lag_1">Close_lag_1</label>
+    <input type="number" id="Close_lag_1" step="any"/>
+
+    <label for="Close_lag_2">Close_lag_2</label>
+    <input type="number" id="Close_lag_2" step="any"/>
+
+    <label for="Close_lag_3">Close_lag_3</label>
+    <input type="number" id="Close_lag_3" step="any"/>
+
+    <label for="Close_MA_5">Close_MA_5</label>
+    <input type="number" id="Close_MA_5" step="any"/>
+
+    <label for="Volume_MA_5">Volume_MA_5</label>
+    <input type="number" id="Volume_MA_5" step="any"/>
+
+    <label for="Close_Std_5">Close_Std_5</label>
+    <input type="number" id="Close_Std_5" step="any"/>
+
+    <button onclick="getPrediction()">Get Prediction</button>
+
+    <div id="loadingIndicator">
+      <p>Analyzing news and predicting trend...</p>
+    </div>
+
+    <div id="predictionResult">
+      <p>Prediction will appear here after submission.</p>
+    </div>
+  </div>
+
+  <script>
+    async function getPrediction() {
+      const resultDiv = document.getElementById('predictionResult');
+      const loadingDiv = document.getElementById('loadingIndicator');
+      resultDiv.innerHTML = '';
+      loadingDiv.style.display = 'block';
+
+      const newsText = document.getElementById('newsInput').value;
+      if (!newsText.trim()) {
+        resultDiv.innerHTML = '<p style="color: orange;">Please enter news text.</p>';
+        loadingDiv.style.display = 'none';
+        return;
+      }
+
+      // Collect stock values
+      const payload = {
+        news_text: newsText,
+        "Close_^GSPC": parseFloat(document.getElementById("Close").value),
+        "High_^GSPC": parseFloat(document.getElementById("High").value),
+        "Low_^GSPC": parseFloat(document.getElementById("Low").value),
+        "Open_^GSPC": parseFloat(document.getElementById("Open").value),
+        "Volume_^GSPC": parseFloat(document.getElementById("Volume").value),
+        "daily_return": parseFloat(document.getElementById("daily_return").value),
+        "Close_lag_1": parseFloat(document.getElementById("Close_lag_1").value),
+        "Close_lag_2": parseFloat(document.getElementById("Close_lag_2").value),
+        "Close_lag_3": parseFloat(document.getElementById("Close_lag_3").value),
+        "Close_MA_5": parseFloat(document.getElementById("Close_MA_5").value),
+        "Volume_MA_5": parseFloat(document.getElementById("Volume_MA_5").value),
+        "Close_Std_5": parseFloat(document.getElementById("Close_Std_5").value)
+      };
+
+      try {
+        const response = await fetch('http://127.0.0.1:5000/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        loadingDiv.style.display = 'none';
+
+        if (response.ok) {
+          let predictionClass = '';
+          if (data.prediction === 'Up') predictionClass = 'trend-up';
+          else if (data.prediction === 'Down') predictionClass = 'trend-down';
+
+          resultDiv.innerHTML = `
+            <p>Predicted Trend: <span class="${predictionClass}">${data.prediction}</span></p>
+            <p>Probabilities:</p>
+            <ul>
+              <li>Down: ${(data.probabilities.Down * 100).toFixed(2)}%</li>
+              <li>Up: ${(data.probabilities.Up * 100).toFixed(2)}%</li>
+            </ul>
+          `;
+        } else {
+          resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error || 'Something went wrong on the server.'}</p>`;
+        }
+      } catch (err) {
+        console.error(err);
+        loadingDiv.style.display = 'none';
+        resultDiv.innerHTML = `<p style="color: red;">Failed to connect to the backend server.</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
